@@ -21,6 +21,10 @@
       {
         "command": "mdWysiwyg.disable",
         "title": "MD WYSIWYG: Disable for current editor"
+      },
+      {
+        "command": "mdWysiwyg.toggleTask",
+        "title": "MD WYSIWYG: Toggle task checkbox at offset"
       }
     ]
   },
@@ -32,11 +36,23 @@
     "package": "vsce package"
   },
   "devDependencies": {
+    "@types/mdast": "^4.0.4",
     "@types/node": "^20.11.0",
+    "@types/unist": "^3.0.3",
     "@types/vscode": "^1.85.0",
     "@vscode/vsce": "^2.24.0",
     "esbuild": "^0.20.0",
     "typescript": "^5.4.0",
     "vitest": "^1.4.0"
+  },
+  "dependencies": {
+    "mdast-util-to-string": "^4.0.0",
+    "remark": "^15.0.1",
+    "remark-frontmatter": "^5.0.0",
+    "remark-gfm": "^4.0.1",
+    "remark-math": "^6.0.0",
+    "remark-parse": "^11.0.0",
+    "unified": "^11.0.5",
+    "unist-util-visit": "^5.1.0"
   }
 }
