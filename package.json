@@ -1,0 +1,42 @@
+{
+  "name": "md-wysiwyg",
+  "displayName": "MD WYSIWYG",
+  "description": "Obsidian-style live preview markdown editing inside the VS Code editor.",
+  "version": "0.0.1",
+  "publisher": "malay",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "main": "./dist/extension.js",
+  "activationEvents": [],
+  "contributes": {
+    "commands": [
+      {
+        "command": "mdWysiwyg.enable",
+        "title": "MD WYSIWYG: Enable for current editor"
+      },
+      {
+        "command": "mdWysiwyg.disable",
+        "title": "MD WYSIWYG: Disable for current editor"
+      }
+    ]
+  },
+  "scripts": {
+    "build": "node esbuild.config.mjs",
+    "watch": "node esbuild.config.mjs --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "package": "vsce package"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "@types/vscode": "^1.85.0",
+    "@vscode/vsce": "^2.24.0",
+    "esbuild": "^0.20.0",
+    "typescript": "^5.4.0",
+    "vitest": "^1.4.0"
+  }
+}
