@@ -36,7 +36,8 @@ export type DecorationKind =
   | 'tableCell'
   | 'tableHeaderCell'
   | 'mathInline'
-  | 'mathBlock';
+  | 'mathBlock'
+  | 'mermaidBlock';
 
 export interface DecorationSpec {
   kind: DecorationKind;
@@ -48,6 +49,8 @@ export interface DecorationSpec {
   columns?: number;
   /** For math decorations: raw LaTeX source so the controller can render to SVG. */
   mathSource?: string;
+  /** For mermaid decorations: raw mermaid source so the controller can request rendering. */
+  mermaidSource?: string;
 }
 
 export function computeDecorations(
@@ -404,10 +407,20 @@ function decorateMathBlock(node: MathBlock, out: DecorationSpec[]): void {
 function decorateCode(node: Code, source: string, out: DecorationSpec[]): void {
   const pos = node.position;
   if (!pos || pos.start.offset == null || pos.end.offset == null) return;
-  if (node.lang === 'mermaid') return; // Phase 5
 
   const start = pos.start.offset;
   const end = pos.end.offset;
+
+  if (node.lang === 'mermaid') {
+    out.push({ kind: 'hidden', start, end });
+    out.push({
+      kind: 'mermaidBlock',
+      start: end,
+      end,
+      mermaidSource: node.value,
+    });
+    return;
+  }
 
   out.push({ kind: 'codeBlock', start, end });
 

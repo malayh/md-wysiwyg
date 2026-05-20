@@ -6,7 +6,8 @@ import {
   disposeTableCellTypes,
   type DecorationTypeMap,
 } from './decorationTypes';
-import { initRenderCache } from './render/cache';
+import { initRenderCache, clearRenderCache } from './render/cache';
+import { initMermaid, disposeMermaid } from './render/mermaid';
 
 let decorationTypes: DecorationTypeMap | undefined;
 const controllers = new Map<string, WysiwygController>();
@@ -17,12 +18,14 @@ function editorKey(editor: vscode.TextEditor): string {
 
 export function activate(context: vscode.ExtensionContext): void {
   initRenderCache(context.globalStorageUri);
+  initMermaid(context.extensionUri, context.globalStorageUri);
   decorationTypes = createDecorationTypes();
   context.subscriptions.push({
     dispose: () => {
       if (decorationTypes) disposeDecorationTypes(decorationTypes);
       decorationTypes = undefined;
       disposeTableCellTypes();
+      disposeMermaid();
     },
   });
 
@@ -96,6 +99,10 @@ export function activate(context: vscode.ExtensionContext): void {
           controllers.delete(key);
         }
       }
+    }),
+    vscode.window.onDidChangeActiveColorTheme(() => {
+      clearRenderCache();
+      for (const controller of controllers.values()) controller.refresh();
     }),
   );
 }

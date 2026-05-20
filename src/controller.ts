@@ -8,6 +8,7 @@ import {
   type StaticDecorationKind,
 } from './decorationTypes';
 import { getMathSvg } from './render/cache';
+import { getMermaidSvg, requestMermaidSvg } from './render/mermaid';
 
 const EDIT_DEBOUNCE_MS = 80;
 const CURSOR_DEBOUNCE_MS = 30;
@@ -40,6 +41,10 @@ export class WysiwygController {
 
   isFor(editor: vscode.TextEditor): boolean {
     return this.editor === editor;
+  }
+
+  refresh(): void {
+    this.update();
   }
 
   private scheduleEdit(): void {
@@ -84,6 +89,38 @@ export class WysiwygController {
         );
         md.isTrusted = true;
         options.hoverMessage = md;
+      }
+      if (spec.mermaidSource != null && spec.kind === 'mermaidBlock') {
+        const rendered = getMermaidSvg(spec.mermaidSource);
+        if (rendered) {
+          options.renderOptions = {
+            after: {
+              contentIconPath: rendered.uri,
+              width: rendered.width,
+              height: rendered.height,
+              margin: '0 0 0 0',
+            },
+          };
+        } else {
+          options.renderOptions = {
+            after: {
+              contentText: ' ⟳ rendering mermaid…',
+              color: new vscode.ThemeColor('descriptionForeground'),
+              margin: '0 0 0 0',
+            },
+          };
+          const source = spec.mermaidSource;
+          requestMermaidSvg(source)
+            .then(() => {
+              if (!this.disposed) this.update();
+            })
+            .catch(() => {
+              // Leave the spinner — a future edit may fix the source.
+            });
+        }
+        options.hoverMessage = new vscode.MarkdownString(
+          '```mermaid\n' + spec.mermaidSource + '\n```',
+        );
       }
       if (spec.mathSource != null && (spec.kind === 'mathInline' || spec.kind === 'mathBlock')) {
         const isBlock = spec.kind === 'mathBlock';

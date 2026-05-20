@@ -76,6 +76,7 @@ export function createDecorationTypes(): DecorationTypeMap {
     }),
     mathInline: vscode.window.createTextEditorDecorationType({}),
     mathBlock: vscode.window.createTextEditorDecorationType({}),
+    mermaidBlock: vscode.window.createTextEditorDecorationType({}),
   };
 }
 

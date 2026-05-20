@@ -18,16 +18,21 @@ export function initRenderCache(storageUri: vscode.Uri): void {
   fs.mkdirSync(cacheDir, { recursive: true });
 }
 
+export function clearRenderCache(): void {
+  memCache.clear();
+}
+
 export function getMathSvg(source: string, display: boolean): MathRenderResult | undefined {
   if (!cacheDir) return undefined;
-  const key = `math-${display ? 'b' : 'i'}-${hash(source)}`;
+  const color = getThemeColor();
+  const key = `math-${display ? 'b' : 'i'}-${colorTag(color)}-${hash(source)}`;
   const cached = memCache.get(key);
   if (cached) return cached;
   const filePath = path.join(cacheDir, key + '.svg');
   const rendered = renderMathToSvg(source, display);
   if (!rendered) return undefined;
   if (!fs.existsSync(filePath)) {
-    fs.writeFileSync(filePath, wrapSvg(rendered.svg), 'utf8');
+    fs.writeFileSync(filePath, wrapSvg(rendered.svg, color), 'utf8');
   }
   const result: MathRenderResult = {
     uri: vscode.Uri.file(filePath),
@@ -42,11 +47,19 @@ function hash(s: string): string {
   return crypto.createHash('sha256').update(s).digest('hex').slice(0, 16);
 }
 
-function wrapSvg(svg: string): string {
+function getThemeColor(): string {
+  const kind = vscode.window.activeColorTheme.kind;
+  const isLight =
+    kind === vscode.ColorThemeKind.Light || kind === vscode.ColorThemeKind.HighContrastLight;
+  return isLight ? '#1f1f1f' : '#d4d4d4';
+}
+
+function colorTag(color: string): string {
+  return color.replace('#', '');
+}
+
+function wrapSvg(svg: string, color: string): string {
   const prelude = '<?xml version="1.0" encoding="UTF-8"?>\n';
-  const withAttrs = svg.replace(
-    /<svg /,
-    '<svg xmlns="http://www.w3.org/2000/svg" style="color: currentColor;" ',
-  );
-  return prelude + withAttrs;
+  const colorized = svg.replace(/currentColor/g, color);
+  return prelude + colorized;
 }

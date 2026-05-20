@@ -1,5 +1,5 @@
 import esbuild from 'esbuild';
-import { readFileSync } from 'fs';
+import { readFileSync, mkdirSync, copyFileSync } from 'fs';
 
 const watch = process.argv.includes('--watch');
 const production = process.argv.includes('--production');
@@ -7,6 +7,9 @@ const production = process.argv.includes('--production');
 const mathjaxVersion = JSON.parse(
   readFileSync('node_modules/mathjax-full/package.json', 'utf8'),
 ).version;
+
+mkdirSync('dist/webview', { recursive: true });
+copyFileSync('node_modules/mermaid/dist/mermaid.min.js', 'dist/webview/mermaid.min.js');
 
 const ctx = await esbuild.context({
   entryPoints: ['src/extension.ts'],

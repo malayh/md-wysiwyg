@@ -48,6 +48,7 @@
   "dependencies": {
     "mathjax-full": "^3.2.1",
     "mdast-util-to-string": "^4.0.0",
+    "mermaid": "^11.15.0",
     "remark": "^15.0.1",
     "remark-frontmatter": "^5.0.0",
     "remark-gfm": "^4.0.1",

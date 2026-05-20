@@ -166,10 +166,17 @@ describe('computeDecorations — code fences', () => {
     expect(hidden).toContain('```');
   });
 
-  it('skips mermaid fences (deferred to Phase 5)', () => {
+  it('emits mermaidBlock with source instead of codeBlock for mermaid fences', () => {
     const src = '```mermaid\nflowchart\n```\n\nx';
     const specs = decorate(src, src.length);
     expect(specs.find((s) => s.kind === 'codeBlock')).toBeUndefined();
+    const mermaid = specs.find((s) => s.kind === 'mermaidBlock');
+    expect(mermaid).toBeDefined();
+    expect(mermaid!.mermaidSource).toBe('flowchart');
+    expect(mermaid!.start).toBe(mermaid!.end);
+    expect(specs.some((s) => s.kind === 'hidden' && slice(src, s).includes('flowchart'))).toBe(
+      true,
+    );
   });
 });
 
