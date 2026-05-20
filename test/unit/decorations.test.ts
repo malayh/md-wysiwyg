@@ -173,6 +173,73 @@ describe('computeDecorations — code fences', () => {
   });
 });
 
+describe('computeDecorations — tables', () => {
+  it('emits per-cell decorations, hides alignment row, and tags column count', () => {
+    const src =
+      '| A | B |\n| --- | --- |\n| a1 | b1 |\n| a2 | b2 |\n| a3 | b3 |\n\nx';
+    const specs = decorate(src, src.length);
+
+    const headerCells = specs.filter((s) => s.kind === 'tableHeaderCell');
+    expect(headerCells.length).toBe(2);
+    expect(headerCells.map((s) => slice(src, s))).toEqual(['A', 'B']);
+    expect(headerCells.every((s) => s.columns === 2)).toBe(true);
+
+    const bodyCells = specs.filter((s) => s.kind === 'tableCell');
+    expect(bodyCells.length).toBe(6);
+    expect(bodyCells.every((s) => s.columns === 2)).toBe(true);
+
+    const hiddenSlices = specs
+      .filter((s) => s.kind === 'hidden')
+      .map((s) => slice(src, s));
+    expect(hiddenSlices).toContain('| --- | --- |');
+  });
+
+  it('reveals the whole table when cursor is inside any row', () => {
+    const src = '| A | B |\n| --- | --- |\n| a1 | b1 |\n\npara';
+    // Cursor inside body row "a1".
+    const cursor = src.indexOf('a1') + 1;
+    const specs = decorate(src, cursor);
+    expect(specs.find((s) => s.kind === 'tableHeaderCell')).toBeUndefined();
+    expect(specs.find((s) => s.kind === 'tableCell')).toBeUndefined();
+  });
+
+  it('still decorates inline formatting inside cells', () => {
+    const src = '| A | B |\n| --- | --- |\n| **bold** | b1 |\n\nx';
+    const specs = decorate(src, src.length);
+    expect(specs.find((s) => s.kind === 'bold')).toBeDefined();
+  });
+});
+
+describe('computeDecorations — math', () => {
+  it('hides $...$ span and emits zero-width mathInline carrying the LaTeX', () => {
+    const src = 'Inline $E = mc^2$ here.\n\nx';
+    const specs = decorate(src, src.length); // cursor outside first block
+    const hidden = specs.find((s) => s.kind === 'hidden' && slice(src, s) === '$E = mc^2$');
+    expect(hidden).toBeDefined();
+    const math = specs.find((s) => s.kind === 'mathInline');
+    expect(math).toBeDefined();
+    expect(math!.start).toBe(math!.end);
+    expect(math!.mathSource).toBe('E = mc^2');
+  });
+
+  it('hides the $$...$$ block and emits zero-width mathBlock carrying the LaTeX', () => {
+    const src = 'para\n\n$$\n\\int_0^1 x^2 dx\n$$\n\nx';
+    const specs = decorate(src, src.length);
+    const math = specs.find((s) => s.kind === 'mathBlock');
+    expect(math).toBeDefined();
+    expect(math!.start).toBe(math!.end);
+    expect(math!.mathSource).toContain('\\int_0^1 x^2 dx');
+    expect(specs.some((s) => s.kind === 'hidden' && slice(src, s).includes('\\int_0^1'))).toBe(true);
+  });
+
+  it('omits math decorations when cursor is inside the math block', () => {
+    const src = 'para\n\n$$\n\\int x\n$$\n\ny';
+    const cursor = src.indexOf('\\int');
+    const specs = decorate(src, cursor);
+    expect(specs.find((s) => s.kind === 'mathBlock')).toBeUndefined();
+  });
+});
+
 describe('computeDecorations — blockquote', () => {
   it('hides leading > on each line and emits blockquoteBar', () => {
     const src = '> first line\n> second line\n\nx';

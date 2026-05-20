@@ -1,7 +1,8 @@
 import * as vscode from 'vscode';
 import type { DecorationKind } from './decorations';
 
-export type DecorationTypeMap = Record<DecorationKind, vscode.TextEditorDecorationType>;
+export type StaticDecorationKind = Exclude<DecorationKind, 'tableCell' | 'tableHeaderCell'>;
+export type DecorationTypeMap = Record<StaticDecorationKind, vscode.TextEditorDecorationType>;
 
 export function createDecorationTypes(): DecorationTypeMap {
   return {
@@ -73,7 +74,38 @@ export function createDecorationTypes(): DecorationTypeMap {
       isWholeLine: true,
       backgroundColor: new vscode.ThemeColor('textCodeBlock.background'),
     }),
+    mathInline: vscode.window.createTextEditorDecorationType({}),
+    mathBlock: vscode.window.createTextEditorDecorationType({}),
   };
+}
+
+const tableCellTypeCache = new Map<string, vscode.TextEditorDecorationType>();
+
+export function getOrCreateTableCellType(
+  columns: number,
+  isHeader: boolean,
+): vscode.TextEditorDecorationType {
+  const key = `${columns}-${isHeader ? 'h' : 'c'}`;
+  const cached = tableCellTypeCache.get(key);
+  if (cached) return cached;
+  const pct = 100 / columns;
+  const css =
+    `none; display: inline-block; box-sizing: border-box; width: ${pct}%;` +
+    ` border: 1px solid; padding: 2px 8px; vertical-align: top;` +
+    ` overflow: hidden; white-space: nowrap; text-overflow: ellipsis;`;
+  const options: vscode.DecorationRenderOptions = { textDecoration: css };
+  if (isHeader) {
+    options.fontWeight = 'bold';
+    options.backgroundColor = new vscode.ThemeColor('editorWidget.background');
+  }
+  const type = vscode.window.createTextEditorDecorationType(options);
+  tableCellTypeCache.set(key, type);
+  return type;
+}
+
+export function disposeTableCellTypes(): void {
+  for (const t of tableCellTypeCache.values()) t.dispose();
+  tableCellTypeCache.clear();
 }
 
 function makeHeading(fontSize: string, color: string): vscode.TextEditorDecorationType {
@@ -84,7 +116,7 @@ function makeHeading(fontSize: string, color: string): vscode.TextEditorDecorati
 }
 
 export function disposeDecorationTypes(map: DecorationTypeMap): void {
-  for (const key of Object.keys(map) as DecorationKind[]) {
+  for (const key of Object.keys(map) as StaticDecorationKind[]) {
     map[key].dispose();
   }
 }

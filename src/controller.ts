@@ -1,12 +1,13 @@
 import * as vscode from 'vscode';
 import type { Root } from 'mdast';
 import { parseMarkdown } from './parser';
+import { computeDecorations, type DecorationSpec } from './decorations';
 import {
-  computeDecorations,
-  type DecorationKind,
-  type DecorationSpec,
-} from './decorations';
-import type { DecorationTypeMap } from './decorationTypes';
+  getOrCreateTableCellType,
+  type DecorationTypeMap,
+  type StaticDecorationKind,
+} from './decorationTypes';
+import { getMathSvg } from './render/cache';
 
 const EDIT_DEBOUNCE_MS = 80;
 const CURSOR_DEBOUNCE_MS = 30;
@@ -18,6 +19,7 @@ export class WysiwygController {
   private lastVersion = -1;
   private cachedAst: Root | undefined;
   private disposed = false;
+  private lastUsedTypes = new Set<vscode.TextEditorDecorationType>();
 
   constructor(
     private editor: vscode.TextEditor,
@@ -64,13 +66,13 @@ export class WysiwygController {
   }
 
   private applyDecorations(specs: DecorationSpec[]): void {
-    const buckets = new Map<DecorationKind, vscode.DecorationOptions[]>();
-    for (const kind of Object.keys(this.decorationTypes) as DecorationKind[]) {
-      buckets.set(kind, []);
-    }
+    const groups = new Map<vscode.TextEditorDecorationType, vscode.DecorationOptions[]>();
     const doc = this.editor.document;
     const uriString = doc.uri.toString();
+
     for (const spec of specs) {
+      const type = this.resolveDecorationType(spec);
+      if (!type) continue;
       const range = new vscode.Range(doc.positionAt(spec.start), doc.positionAt(spec.end));
       const options: vscode.DecorationOptions = { range };
       if (spec.taskBracketOffset != null) {
@@ -83,11 +85,53 @@ export class WysiwygController {
         md.isTrusted = true;
         options.hoverMessage = md;
       }
-      buckets.get(spec.kind)!.push(options);
+      if (spec.mathSource != null && (spec.kind === 'mathInline' || spec.kind === 'mathBlock')) {
+        const isBlock = spec.kind === 'mathBlock';
+        const rendered = getMathSvg(spec.mathSource, isBlock);
+        if (rendered) {
+          options.renderOptions = {
+            after: {
+              contentIconPath: rendered.uri,
+              width: rendered.width,
+              height: rendered.height,
+              margin: isBlock ? '0 0 0 0' : '0 0 0 0.15em',
+            },
+          };
+        }
+        const fence = isBlock ? '$$' : '$';
+        options.hoverMessage = new vscode.MarkdownString(
+          '```latex\n' + fence + spec.mathSource + fence + '\n```',
+        );
+      }
+      let bucket = groups.get(type);
+      if (!bucket) {
+        bucket = [];
+        groups.set(type, bucket);
+      }
+      bucket.push(options);
     }
-    for (const [kind, options] of buckets) {
-      this.editor.setDecorations(this.decorationTypes[kind], options);
+
+    const usedNow = new Set<vscode.TextEditorDecorationType>();
+    for (const [type, options] of groups) {
+      this.editor.setDecorations(type, options);
+      usedNow.add(type);
     }
+    for (const type of this.lastUsedTypes) {
+      if (!usedNow.has(type)) this.editor.setDecorations(type, []);
+    }
+    for (const kind of Object.keys(this.decorationTypes) as StaticDecorationKind[]) {
+      const type = this.decorationTypes[kind];
+      if (!usedNow.has(type)) this.editor.setDecorations(type, []);
+    }
+    this.lastUsedTypes = usedNow;
+  }
+
+  private resolveDecorationType(spec: DecorationSpec): vscode.TextEditorDecorationType | undefined {
+    if (spec.kind === 'tableCell' || spec.kind === 'tableHeaderCell') {
+      const cols = spec.columns ?? 1;
+      return getOrCreateTableCellType(cols, spec.kind === 'tableHeaderCell');
+    }
+    return this.decorationTypes[spec.kind];
   }
 
   dispose(): void {
@@ -96,8 +140,12 @@ export class WysiwygController {
     if (this.cursorTimer) clearTimeout(this.cursorTimer);
     for (const d of this.disposables) d.dispose();
     this.disposables = [];
-    for (const kind of Object.keys(this.decorationTypes) as DecorationKind[]) {
+    for (const kind of Object.keys(this.decorationTypes) as StaticDecorationKind[]) {
       this.editor.setDecorations(this.decorationTypes[kind], []);
     }
+    for (const type of this.lastUsedTypes) {
+      this.editor.setDecorations(type, []);
+    }
+    this.lastUsedTypes.clear();
   }
 }

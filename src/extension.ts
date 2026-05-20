@@ -3,8 +3,10 @@ import { WysiwygController } from './controller';
 import {
   createDecorationTypes,
   disposeDecorationTypes,
+  disposeTableCellTypes,
   type DecorationTypeMap,
 } from './decorationTypes';
+import { initRenderCache } from './render/cache';
 
 let decorationTypes: DecorationTypeMap | undefined;
 const controllers = new Map<string, WysiwygController>();
@@ -14,11 +16,13 @@ function editorKey(editor: vscode.TextEditor): string {
 }
 
 export function activate(context: vscode.ExtensionContext): void {
+  initRenderCache(context.globalStorageUri);
   decorationTypes = createDecorationTypes();
   context.subscriptions.push({
     dispose: () => {
       if (decorationTypes) disposeDecorationTypes(decorationTypes);
       decorationTypes = undefined;
+      disposeTableCellTypes();
     },
   });
 
